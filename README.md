@@ -73,13 +73,13 @@ docker compose up -d
 1. Fork 或克隆本仓库到您自己的 GitHub 账号下。
 2. 在本地编辑 `wrangler.jsonc`：
    - `name` 改成你自己的 Worker 名称（全局唯一，建议如 `solara-yourname`）
-   - `d1_databases[0].database_name` 保持你希望的库名（默认 `solara-db`）
+   - `d1_databases[0].database_name` 保持你希望的库名（默认 `solara-db2`）
 3. 推送到你的 GitHub 仓库后，配置 GitHub Actions 所需 Secrets：
    - `CLOUDFLARE_API_TOKEN`：Cloudflare API Token（需包含 Workers Scripts Edit、D1 Edit、Account Read 权限）
    - `CLOUDFLARE_ACCOUNT_ID`：Cloudflare 账户 ID
    - `PASSWORD`（可选）：访问密码
    - `LANGUAGE`（可选）：设置为 `ENG` 可启用英文界面
-4. （可选）在 GitHub 仓库 **Settings → Secrets and variables → Actions → Variables** 新增 `D1_DATABASE_NAME`，可覆盖默认数据库名 `solara-db`。
+4. （可选）在 GitHub 仓库 **Settings → Secrets and variables → Actions → Variables** 新增 `D1_DATABASE_NAME`，可覆盖默认数据库名 `solara-db2`。
 5. 在 GitHub 仓库 Actions 页面运行 `Deploy to Cloudflare Workers`，或推送到 `main` 分支自动部署。
 
 > 工作流会自动执行：

@@ -17,7 +17,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "solara-db",
+      "database_name": "solara-db2",
       "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
     }
   ]

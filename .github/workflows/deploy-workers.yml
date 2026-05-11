@@ -75,7 +75,7 @@ jobs:
           );
           SQL
 
-          npx wrangler d1 execute "$DB_ID" --remote --file schema.sql --config wrangler.ci.jsonc
+          npx wrangler d1 execute "$D1_DATABASE_NAME" --remote --file schema.sql --config wrangler.ci.jsonc
 
       - name: Sync optional worker secrets
         shell: bash

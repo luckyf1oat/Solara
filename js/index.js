@@ -641,8 +641,8 @@ function buildAudioProxyUrl(url) {
 }
 
 const SOURCE_OPTIONS = [
-    { value: "netease", label: "网易云音乐" },
     { value: "kuwo", label: "酷我音乐" },
+    { value: "netease", label: "网易云音乐" },
     { value: "joox", label: "JOOX音乐" },
     { value: "bilibili", label: "哔哩哔哩" }
 ];
@@ -794,7 +794,7 @@ const API = {
         }
     },
 
-    search: async (keyword, source = "netease", count = 20, page = 1) => {
+    search: async (keyword, source = "kuwo", count = 20, page = 1) => {
         const signature = API.generateSignature();
         const url = `${API.baseUrl}?types=search&source=${source}&name=${encodeURIComponent(keyword)}&count=${count}&pages=${page}&s=${signature}`;
 
@@ -804,6 +804,11 @@ const API = {
             debugLog(`API响应: ${JSON.stringify(data).substring(0, 200)}...`);
 
             if (!Array.isArray(data)) throw new Error("搜索结果格式错误");
+
+            if (data.length === 0 && source !== "kuwo") {
+                debugLog(`音源 ${source} 返回空结果，自动回退到 kuwo`);
+                return API.search(keyword, "kuwo", count, page);
+            }
 
             return data.map(song => ({
                 id: song.id,
@@ -5585,7 +5590,7 @@ function pickRandomExploreGenre() {
     return EXPLORE_RADAR_GENRES[index];
 }
 
-const EXPLORE_RADAR_SOURCES = ["netease", "kuwo"];
+const EXPLORE_RADAR_SOURCES = ["kuwo"];
 
 function pickRandomExploreSource() {
     if (!Array.isArray(EXPLORE_RADAR_SOURCES) || EXPLORE_RADAR_SOURCES.length === 0) {

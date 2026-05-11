@@ -25,7 +25,7 @@
 - 📝 动态歌词视图：逐行滚动高亮，当前行自动聚焦，手动滚动后短暂锁定视图。
 - 🔄 列表导入导出：支持播放队列与收藏列表统一导入/导出，可一键迁移或恢复收藏歌曲并同步到播放队列。
 - 📥 多码率下载：可挑选 128K / 192K / 320K / FLAC 等品质并直接获取音频文件。
-- ☁️ 轻量后端代理：通过 Cloudflare Pages Functions 统一聚合各数据源并处理音频跨域。
+- ☁️ 轻量后端代理：通过 Cloudflare Workers 统一聚合各数据源并处理音频跨域。
 - 🔒 锁屏播放控制：锁屏界面自动显示专辑封面与播放控件，无需解锁即可进行播放控制。
 - 🛠️ 调试控制台：按下 Ctrl + D 呼出实时日志面板，便于排查接口或交互异常。
 
@@ -33,7 +33,7 @@
 支持多种部署方式，您可以根据自己的服务器环境选择最合适的一种：
 
 - [🐳 Docker 一键部署 (适合私有服务器)](#-docker-一键部署-适合私有服务器)
-- [✅ Cloudflare Pages 部署 (适合免服务器托管)](#-cloudflare-pages-部署-适合免服务器托管)
+- [✅ Cloudflare Workers 部署（支持 GitHub Actions 一键部署）](#-cloudflare-workers-部署支持-github-actions-一键部署)
 
 ---
 
@@ -67,22 +67,36 @@ docker compose up -d
 
 ---
 
-### ✅ Cloudflare Pages 部署 (适合免服务器托管)
-如果您没有自己的服务器，可以直接使用 Cloudflare 免费部署：
+### ✅ Cloudflare Workers 部署（支持 GitHub Actions 一键部署）
+如果您没有自己的服务器，可以直接使用 Cloudflare Workers 免费部署：
+
 1. Fork 或克隆本仓库到您自己的 GitHub 账号下。
-2. 登录 Cloudflare 控制台，按照 Cloudflare Pages 文档创建站点，并将本仓库作为构建来源或直接上传静态资源。
-3. 部署完成后，通过 Cloudflare Pages 分配的域名访问站点即可。
+2. 在本地编辑 `wrangler.jsonc`：
+   - `name` 改成你自己的 Worker 名称（全局唯一，建议如 `solara-yourname`）
+   - `d1_databases[0].database_name` 保持你希望的库名（默认 `solara-db`）
+3. 推送到你的 GitHub 仓库后，配置 GitHub Actions 所需 Secrets：
+   - `CLOUDFLARE_API_TOKEN`：Cloudflare API Token（需包含 Workers Scripts Edit、D1 Edit、Account Read 权限）
+   - `CLOUDFLARE_ACCOUNT_ID`：Cloudflare 账户 ID
+   - `PASSWORD`（可选）：访问密码
+   - `LANGUAGE`（可选）：设置为 `ENG` 可启用英文界面
+4. （可选）在 GitHub 仓库 **Settings → Secrets and variables → Actions → Variables** 新增 `D1_DATABASE_NAME`，可覆盖默认数据库名 `solara-db`。
+5. 在 GitHub 仓库 Actions 页面运行 `Deploy to Cloudflare Workers`，或推送到 `main` 分支自动部署。
+
+> 工作流会自动执行：
+> - 若 D1 不存在则自动创建
+> - 自动将 D1 `database_id` 写入 CI 临时 wrangler 配置并完成绑定
+> - 自动执行建表 SQL（`playback_store` / `favorites_store`）
+
+---
 
 ## ⚙️ 配置提示
 - API 基地址定义在 functions/proxy.ts 中的第1行，可替换为自建接口域名。
 - 默认主题、播放模式等偏好可在 `state` 初始化逻辑中按需调整。
 
-### ☁️ Cloudflare D1 绑定与建表
-1. 在 Cloudflare Dashboard 的 **Workers & Pages → D1 → Create** 中新建数据库，建议命名为 `solara-db`（名称可自定）。
-2. 打开 Pages 项目设置，依次进入 **Settings → Functions → Bindings → Add binding → D1 Database**：
-   - **Binding name** 填写 `DB`（必须与 `functions/api/storage.ts` 中的环境变量一致）。
-   - **D1 Database** 选择上一步创建的数据库并保存。
-3. 在数据库详情页切换到 **Query** 标签页，执行下方建表语句初始化两个独立的键值存储表（播放数据与收藏数据分离）：
+### ☁️ Cloudflare D1 自动创建与绑定（CI）
+默认情况下，GitHub Actions 工作流会自动创建并绑定 D1，无需手工在 Dashboard 创建或填 `database_id`。
+
+如需手动核验，可在数据库详情页或命令行确认以下两张表已自动初始化：
    ```sql
    CREATE TABLE IF NOT EXISTS playback_store (
      key TEXT PRIMARY KEY,
@@ -96,18 +110,18 @@ docker compose up -d
      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
    );
    ```
-4. 重新部署或预览站点。前端会优先检测 D1 绑定：播放状态、播放列表等写入 `playback_store`，收藏相关写入 `favorites_store`；未绑定时自动退回浏览器 localStorage。
+前端会优先检测 D1 绑定：播放状态、播放列表等写入 `playback_store`，收藏相关写入 `favorites_store`；未绑定时自动退回浏览器 localStorage。
 
 ## 🧭 探索雷达
 - 探索雷达会在「流行、摇滚、古典音乐、民谣、电子、爵士、说唱、乡村、蓝调、R&B、金属、嘻哈、轻音乐」等分类中随机挑选关键词，自动为播放列表补充新歌。
 - 如果想排除某些不喜欢的分类，可在 `js/index.js` 中的 `EXPLORE_RADAR_GENRES` 数组里删除对应条目或新增自己喜欢的分类，保存后重新部署即可生效。
 
 ## 🔐 访问控制设置
-- **Cloudflare Pages：** 在项目的 **Settings → Functions → Environment variables** 中新增名为 `PASSWORD` 的环境变量，值为希望设置的访问口令。
+- **Cloudflare Workers（推荐 GitHub Secrets 注入）：** 在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中新增 `PASSWORD`，Workflow 会自动写入 Worker Secret。
 - 部署完成后，未登录的访问者会被自动重定向到 `/login` 页面并需输入该口令；若想关闭访问口令，删除该环境变量并重新部署即可。
 
 ## 🌐 多语言设置 (English Version)
-- **Cloudflare Pages：** 在项目的 **Settings → Functions → Environment variables** 中新增名为 `LANGUAGE` 的环境变量，值为 `ENG`。
+- **Cloudflare Workers（推荐 GitHub Secrets 注入）：** 在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中新增 `LANGUAGE=ENG`，Workflow 会自动写入 Worker Secret。
 - 部署完成后，站点将会自动切换为全英文界面。若想恢复中文界面，删除该环境变量或修改为其他值后重新部署即可。
 
 ## 🎵 使用流程
@@ -136,11 +150,14 @@ Music-Player/
 │   ├── mobile.css    # 移动端适配样式
 │   └── style.css     # 公共主题与变量定义
 ├── functions/
-│   ├── _middleware.ts # Cloudflare Pages Functions 中间件
+│   ├── _middleware.ts # 历史 Pages Functions 中间件（Workers 版本可不使用）
 │   ├── api/           # 各曲库代理函数入口
 │   ├── lib/           # 请求封装与工具模块
 │   ├── palette.ts     # 封面取色算法
-│   └── proxy.ts       # 音频直链代理
+│   ├── proxy.ts       # 音频直链代理
+├── worker.ts          # Cloudflare Workers 统一入口（静态资源 + API + 中间件）
+├── wrangler.jsonc     # Workers/D1 绑定配置
+├── .github/workflows/deploy-workers.yml # GitHub Actions 一键部署
 ├── js/
 │   ├── index.js       # 播放器核心逻辑、状态管理与探索雷达分类
 │   └── mobile.js      # 移动端交互与事件处理

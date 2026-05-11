@@ -37,8 +37,15 @@ jobs:
 
           if [ -z "$DB_ID" ]; then
             echo "D1 '$D1_DATABASE_NAME' not found, creating..."
-            npx wrangler d1 create "$D1_DATABASE_NAME" --json > d1-created.json
-            DB_ID=$(node -e "const fs=require('fs');const obj=JSON.parse(fs.readFileSync('d1-created.json','utf8'));process.stdout.write(obj.uuid||obj.id||'');")
+            npx wrangler d1 create "$D1_DATABASE_NAME" > d1-created.txt
+
+            DB_ID=$(node -e "const fs=require('fs');const txt=fs.readFileSync('d1-created.txt','utf8');const m=txt.match(/database_id\s*=\s*([a-f0-9-]{36})/i)||txt.match(/([a-f0-9-]{36})/i);if(m){process.stdout.write(m[1]);}")
+
+            if [ -z "$DB_ID" ]; then
+              echo "Create output did not contain database id, fallback to list..."
+              npx wrangler d1 list --json > d1-list.json
+              DB_ID=$(node -e "const fs=require('fs');const name=process.env.D1_DATABASE_NAME;const list=JSON.parse(fs.readFileSync('d1-list.json','utf8'));const found=(list||[]).find(i=>i.name===name);if(found){process.stdout.write(found.uuid||found.id||'');}")
+            fi
           fi
 
           if [ -z "$DB_ID" ]; then
